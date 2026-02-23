@@ -1,6 +1,7 @@
 ----------------------------------------------------------------------------------------
 --  Date: 23-02-2026
---  Wallbox Automatisering v0.3.17-R2
+--  Wallbox Automatisering v0.3.17
+--  Engineer    : XtremerNL
 --
 --  Notificaties:
 --    Soft overload (1x per sessie):
@@ -48,7 +49,7 @@ local IDX_WB_I_L3               = 578   -- Wallbox stroom L3 (A)
 
 -- Netstroommetingen per fase
 local IDX_NET_I_L1              = 197   -- Netstroom L1 (A)
-local IDX_NET_I_L2              = 595   -- Netstroom L2 (A)
+local IDX_NET_I_L2              = 198   -- Netstroom L2 (A)
 local IDX_NET_I_L3              = 199   -- Netstroom L3 (A)
 
 
@@ -523,3 +524,4 @@ return {
 
     end
 }
+
