@@ -5,6 +5,7 @@ Dit DZvents‑script regelt het laadvermogen van een elektrische auto op een man
 Het script is ontworpen voor Domoticz en werkt met elke wallbox die via een dimmer‑device (laadstroom) en een selector (preset/dynamic) kan worden aangestuurd.
 
 ✨ Belangrijkste functies
+
 💡 Tarief‑blokkering (peak/off‑peak control)
 Het script kan laden automatisch blokkeren op basis van het actuele energietarief.
 - Laden toegestaan tijdens daluren
@@ -27,34 +28,39 @@ Bij lichte overstroom:
 - Direct overschakelen naar DYNAMIC
 - 1 notificatie per sessie
 - “Kleine overbelasting gedetecteerd — laadstroom wordt bijgeregeld.”
+
 🔥 Hard overload (≥30A)Bij zware overstroom:- Laden wordt gepauzeerd
 - Dimmer naar 0%
 - DYNAMIC‑mode geactiveerd
 - FuseProtection actief
 - 1 notificatie per overbelasting‑periode
 - “Grove overbelasting — laden tijdelijk gepauzeerd voor veiligheid.”
+
 🔄 Hard overload herstelWanneer de netbelasting weer veilig is:- Pauze wordt automatisch opgeheven
 - Laadstroom start veilig op 6A
 - 1 herstelmelding per periode
 - “Grove overbelasting hersteld — laadstroom wordt bijgeregeld.”
+
 🧠 Sessie‑intelligentie- Preset wordt opgeslagen bij sessiestart
 - Preset wordt hersteld bij sessie‑einde (indien fuseProtection actief was)
 - Notificatie‑latches worden automatisch gereset
 - Start in DYNAMIC → altijd veilig terug naar 6A
+
 📊 LoggingHet script logt:- Overload‑detectie
 - Pauze‑acties
 - Tarief‑blokkering
 - Herstelmomenten
 - Handshake‑status
 - Eindsamenvatting per cyclus
+
 🛡 Veiligheid boven allesHet script is ontworpen met industriële principes:- Hysteresis
 - Set/Reset‑latches
 - Failsafe‑states
 - Geen oscillatie
 - Geen notificatie‑spam
 - Geen onnodige pauzes
+
 📦 Voor wie is dit script bedoeld?- Domoticz‑gebruikers met een EV‑lader
 - Installaties met beperkte hoofdzekeringen
 - Situaties waar loadbalancing cruciaal is
-- Gebruikers met dynamische energiecontracten
 - Engineers die maximale controle en veiligheid willen
