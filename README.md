@@ -15,6 +15,7 @@ Het script kan laden automatisch blokkeren op basis van het actuele energietarie
 Dit maakt het ideaal voor dynamische energiecontracten of vaste piek/dal‑tarieven.
 
 🔌 Dynamische loadbalancing (DYNAMIC‑mode)
+
 Het script regelt automatisch de laadstroom op basis van de actuele netbelasting.
 - Snelle opbouw bij lage netbelasting
 - Langzame opbouw bij hogere belasting
@@ -22,6 +23,7 @@ Het script regelt automatisch de laadstroom op basis van de actuele netbelasting
 - Handshake‑detectie wanneer de auto nog geen stroom vraagt
 
 ⚡ Soft overload (25–30A)
+
 Bij lichte overstroom:
 - Geen pauze
 - Automatisch terugregelen
@@ -29,38 +31,50 @@ Bij lichte overstroom:
 - 1 notificatie per sessie
 - “Kleine overbelasting gedetecteerd — laadstroom wordt bijgeregeld.”
 
-🔥 Hard overload (≥30A)Bij zware overstroom:- Laden wordt gepauzeerd
+🔥 Hard overload (≥30A)
+
+Bij zware overstroom:- Laden wordt gepauzeerd
 - Dimmer naar 0%
 - DYNAMIC‑mode geactiveerd
 - FuseProtection actief
 - 1 notificatie per overbelasting‑periode
 - “Grove overbelasting — laden tijdelijk gepauzeerd voor veiligheid.”
 
-🔄 Hard overload herstelWanneer de netbelasting weer veilig is:- Pauze wordt automatisch opgeheven
+🔄 Hard overload herstel
+
+Wanneer de netbelasting weer veilig is:- Pauze wordt automatisch opgeheven
 - Laadstroom start veilig op 6A
 - 1 herstelmelding per periode
 - “Grove overbelasting hersteld — laadstroom wordt bijgeregeld.”
 
-🧠 Sessie‑intelligentie- Preset wordt opgeslagen bij sessiestart
+🧠 Sessie‑intelligentie- 
+
+Preset wordt opgeslagen bij sessiestart
 - Preset wordt hersteld bij sessie‑einde (indien fuseProtection actief was)
 - Notificatie‑latches worden automatisch gereset
 - Start in DYNAMIC → altijd veilig terug naar 6A
 
-📊 LoggingHet script logt:- Overload‑detectie
+📊 LoggingHet script logt:- 
+
+Overload‑detectie
 - Pauze‑acties
 - Tarief‑blokkering
 - Herstelmomenten
 - Handshake‑status
 - Eindsamenvatting per cyclus
 
-🛡 Veiligheid boven allesHet script is ontworpen met industriële principes:- Hysteresis
+🛡 Veiligheid boven alles
+
+Het script is ontworpen met industriële principes:- Hysteresis
 - Set/Reset‑latches
 - Failsafe‑states
 - Geen oscillatie
 - Geen notificatie‑spam
 - Geen onnodige pauzes
 
-📦 Voor wie is dit script bedoeld?- Domoticz‑gebruikers met een EV‑lader
+📦 Voor wie is dit script bedoeld?
+
+- Domoticz‑gebruikers met een EV‑lader
 - Installaties met beperkte hoofdzekeringen
 - Situaties waar loadbalancing cruciaal is
 - Engineers die maximale controle en veiligheid willen
