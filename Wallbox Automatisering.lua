@@ -1,59 +1,80 @@
 ----------------------------------------------------------------------------------------
---  Date: 21-02-2026
---  Wallbox Automatisering v0.3.16
+--  Date: 23-02-2026
+--  Wallbox Automatisering v0.3.17-R2
 --
 --  Notificaties:
 --    Soft overload (1x per sessie):
 --       "Kleine overbelasting gedetecteerd — laadstroom wordt bijgeregeld."
 --
---    Hard overload (1x per overbelasting-periode, geen spam):
+--    Hard overload (1x per overbelasting-periode):
 --       "Grove overbelasting — laden tijdelijk gepauzeerd voor veiligheid."
 --
 --    Hard overload herstel (1x per herstelperiode):
 --       "Grove overbelasting hersteld — laadstroom wordt bijgeregeld."
 --
+--    Communicatie-failsafe (ALTIJD melden):
+--       "Netmeting verlopen — laden tijdelijk gepauzeerd voor veiligheid."
+--       "Netmeting hersteld — laden hervat op veilige stroom."
+--
 --  Gedrag:
 --    - Soft overload → naar DYNAMIC + rustig terugregelen, geen pauze
 --    - Hard overload → pauze + fuseProtection + notificatie (gelatcht)
 --    - Pauze-release → dynamic 6A + herstelmelding (gelatcht)
---    - Variabele opbouwsnelheid (<20A snel, ≥20A langzaam)
---    - Handshake logging
---    - END logging
+--    - Communicatie-failsafe → pauze + ALTIJD melding + herstelmelding
+--    - Variabele opbouwsnelheid:
+--         < FastIncreaseThreshold  → snelle opbouw
+--         ≥ FastIncreaseThreshold → langzame opbouw
+--    - Hysteresis opbouw/afbouw (HYST_LOW / HYST_HIGH)
+--    - Handshake logging (auto vraagt nog geen stroom)
+--    - END logging (statusoverzicht)
 --    - Sessie start in DYNAMIC → dimmer terug naar 6A
 ----------------------------------------------------------------------------------------
 
 local Script_Name    = 'Wallbox Automatisering'
-local Script_Version = '0.3.16'
+local Script_Version = '0.3.17'
 
--- IDX mapping
-local IDX_TARIEF                = 366
-local IDX_MODE                  = 477
-local IDX_PAUSE                 = 593
-local IDX_LAADSTROOM_DIMMER     = 594
-local IDX_LADER                 = 590
-local IDX_SELECTOR              = 592
+-- IDX mapping (koppeling naar Domoticz devices)
+local IDX_TARIEF                = 366   -- Tariefschakeling (peak/dal) voor tarief-blokkering
+local IDX_MODE                  = 477   -- Handmatige modus (Auto / Alleen-dal / Uit)
+local IDX_PAUSE                 = 593   -- Pauzeer-knop van de wallbox (On/Off)
+local IDX_LAADSTROOM_DIMMER     = 594   -- Dimmer die de laadstroom (6–16A) aanstuurt
+local IDX_LADER                 = 590   -- Wallbox status (On = laden, Off = geen sessie)
+local IDX_SELECTOR              = 592   -- Preset selector (6A/8A/10A/13A/16A of Dynamic)
 
-local IDX_WB_I_L1               = 576
-local IDX_WB_I_L2               = 577
-local IDX_WB_I_L3               = 578
+-- Wallbox stroommetingen per fase
+local IDX_WB_I_L1               = 576   -- Wallbox stroom L1 (A)
+local IDX_WB_I_L2               = 577   -- Wallbox stroom L2 (A)
+local IDX_WB_I_L3               = 578   -- Wallbox stroom L3 (A)
 
-local IDX_NET_I_L1              = 197
-local IDX_NET_I_L2              = 595
-local IDX_NET_I_L3              = 199
+-- Netstroommetingen per fase
+local IDX_NET_I_L1              = 197   -- Netstroom L1 (A)
+local IDX_NET_I_L2              = 595   -- Netstroom L2 (A)
+local IDX_NET_I_L3              = 199   -- Netstroom L3 (A)
 
--- Settings
-local LOOP_INTERVAL             = 10
-local MIN_AMPERE                = 6
 
-local CurrentIncreasing         = 0.10
-local CurrentFastIncreasing     = 1.00
-local CurrentDecreasing         = 0.50
+-- Settings (gedrag van de loadbalancing en beveiligingen)
+local LOOP_INTERVAL             = 10    -- Interval (sec) voor opbouw/afbouw van laadstroom
+local MIN_AMPERE                = 6     -- Minimale laadstroom (veiligheidswaarde)
 
-local OVERLOAD_SOFT             = 25
-local OVERLOAD_HARD_MIN         = 30
-local PAUSE_RELEASE             = 17
-local HYST_LOW                  = 23
-local HYST_HIGH                 = 25
+-- Dynamische opbouw/afbouw snelheden
+local CurrentIncreasing         = 0.10  -- Langzame opbouw (A per interval) bij hogere netbelasting
+local CurrentFastIncreasing     = 1.00  -- Snelle opbouw (A per interval) bij lage netbelasting
+local FastIncreaseThreshold 	= 20   	-- Onder deze netstroom mag de laadstroom snel omhoog
+local CurrentDecreasing         = 0.50  -- Afbouw (A per interval) bij soft overload
+
+-- Overload drempels
+local OVERLOAD_SOFT             = 25    -- Soft overload drempel (A) → terugregelen, geen pauze
+local OVERLOAD_HARD_MIN         = 30    -- Hard overload drempel (A) → directe pauze
+
+-- Pauze-release drempel
+local PAUSE_RELEASE             = 17    -- Onder deze netstroom mag de pauze worden opgeheven
+
+-- Hysteresis band voor opbouw/afbouw
+local HYST_LOW                  = 23    -- Onder deze waarde mag laadstroom langzaam omhoog
+local HYST_HIGH                 = 25    -- Boven deze waarde moet laadstroom omlaag
+
+-- Communicatie failsafe
+local NETCOMM_TIMEOUT           = 10    -- Max leeftijd (sec) van netmetingen; ouder = pauze failsafe
 
 -----------------------------------------------------------------------
 -- Helper functions
@@ -103,7 +124,7 @@ return {
     },
 
     logging = {
-        level = domoticz.LOG_INFO,
+        -- level = domoticz.LOG_DEBUG,      -- UnComment voor Debug logging.
         marker = Script_Name .. ' v' .. Script_Version
     },
 
@@ -117,13 +138,16 @@ return {
         fuseProtectionActive  = { initial = false },
         sessionPresetLevel    = { initial = nil },
         sessionPresetAmp      = { initial = nil },
-
+    
         -- Notificatie flags
         softNotified          = { initial = false },
-
+    
         hardOverloadActive    = { initial = false },
         hardOverloadNotified  = { initial = false },
-        hardRecoveredNotified = { initial = false }
+        hardRecoveredNotified = { initial = false },
+    
+        -- Communicatie failsafe status
+        netCommFaultActive    = { initial = false }
     },
 
     execute = function(dz)
@@ -195,9 +219,76 @@ return {
 
             return
         end
+		
+		--------------------------------------------------------------------
+		-- 3. Failsafe: netmeting te oud → pauze
+		--------------------------------------------------------------------
+
+		if lader.state == 'On' then
+
+			-- Leeftijd van alle drie de fases bepalen
+			local lastL1 = dz.devices(IDX_NET_I_L1).lastUpdate.raw
+			local lastL2 = dz.devices(IDX_NET_I_L2).lastUpdate.raw
+			local lastL3 = dz.devices(IDX_NET_I_L3).lastUpdate.raw
+
+			local ageL1 = now - lastL1
+			local ageL2 = now - lastL2
+			local ageL3 = now - lastL3
+
+			-- Als één van de drie ouder is dan NETCOMM_TIMEOUT → FAILSAFE
+			local commFault =
+				(ageL1 > NETCOMM_TIMEOUT) or
+				(ageL2 > NETCOMM_TIMEOUT) or
+				(ageL3 > NETCOMM_TIMEOUT)
+
+			if commFault then
+
+				-- Meld ALTIJD wanneer de netmeting verlopen is
+				dz.notify("Wallbox",
+					"Netmeting verlopen — laden tijdelijk gepauzeerd voor veiligheid.",
+					dz.PRIORITY_HIGH)
+
+				-- Activeer failsafe-status
+				dz.data.netCommFaultActive    = true
+
+				-- Pauzeer laden
+				dz.data.pauseBySystem        = true
+				dz.data.dynamicStarted       = false
+				dz.data.maxAllowedA          = MIN_AMPERE
+				dz.data.fuseProtectionActive = true
+
+				dimmer.setLevel(0)
+				selector.setLevel(0)
+				pause.switchOn()
+
+				-- In failsafe blijven, niets anders doen
+				return
+			end
+
+			-- Herstel: alle drie de fases zijn weer vers (< NETCOMM_TIMEOUT)
+			if dz.data.netCommFaultActive then
+
+				-- Meld ALTIJD wanneer de netmeting hersteld is
+				dz.notify("Wallbox",
+					"Netmeting hersteld — laden hervat op veilige stroom.",
+					dz.PRIORITY_NORMAL)
+
+				-- Reset failsafe-status
+				dz.data.netCommFaultActive = false
+
+				-- Herstel naar veilige DYNAMIC 6A
+				dz.data.pauseBySystem  = false
+				dz.data.dynamicStarted = true
+				dz.data.maxAllowedA    = MIN_AMPERE
+
+				selector.setLevel(0)
+				dimmer.setLevel(ampToDimmerLevel(MIN_AMPERE))
+				pause.switchOff()
+			end
+		end
 
         --------------------------------------------------------------------
-        -- 3. Tarief / Mode → Pauze
+        -- 4. Tarief / Mode → Pauze
         --------------------------------------------------------------------
         local modeLevel   = mode.level
         local tariefLevel = tarief.level
@@ -216,12 +307,12 @@ return {
         end
 
         --------------------------------------------------------------------
-        -- 4. Stop als lader uit staat
+        -- 5. Stop als lader uit staat
         --------------------------------------------------------------------
         if lader.state ~= 'On' then return end
 
         --------------------------------------------------------------------
-        -- 5. Loadbalancing basis
+        -- 6. Loadbalancing basis
         --------------------------------------------------------------------
         local selectorLevel = selector.level or 0
         local presetA       = presetToAmp(selectorLevel)
@@ -243,7 +334,7 @@ return {
         local modeLB = (selectorLevel == 0) and 'DYNAMIC' or 'PRESET'
 
         --------------------------------------------------------------------
-        -- 6. HARD OVERLOAD → dimmer 0%, DYNAMIC, pauze + gelatchte notificatie
+        -- 7. HARD OVERLOAD → dimmer 0%, DYNAMIC, pauze + gelatchte notificatie
         --------------------------------------------------------------------
         if maxNet >= OVERLOAD_HARD_MIN then
 
@@ -274,7 +365,7 @@ return {
         end
 
         --------------------------------------------------------------------
-        -- 7. Pauze-release → DYNAMIC op 6A + herstelmelding (gelatcht)
+        -- 8. Pauze-release → DYNAMIC op 6A + herstelmelding (gelatcht)
         --------------------------------------------------------------------
         if dz.data.pauseBySystem and maxNet < PAUSE_RELEASE then
 
@@ -306,7 +397,7 @@ return {
         if dz.data.pauseBySystem then return end
 
         --------------------------------------------------------------------
-        -- 8. SOFT OVERLOAD (25–30A) → naar DYNAMIC + terugregelen + 1x notificatie
+        -- 9. SOFT OVERLOAD (25–30A) → naar DYNAMIC + terugregelen + 1x notificatie
         --------------------------------------------------------------------
         if maxNet > OVERLOAD_SOFT and maxNet < OVERLOAD_HARD_MIN then
 
@@ -329,7 +420,7 @@ return {
         end
 
         --------------------------------------------------------------------
-        -- 9. 6A niet genoeg → pauze (hard overload route)
+        -- 10. 6A niet genoeg → pauze (hard overload route)
         --------------------------------------------------------------------
         if maxAllowedA <= MIN_AMPERE and maxNet > OVERLOAD_SOFT then
 
@@ -359,7 +450,7 @@ return {
         end
 
         --------------------------------------------------------------------
-        -- 10. Handshake logging
+        -- 11. Handshake logging
         --------------------------------------------------------------------
         if dz.data.dynamicStarted and maxAllowedA >= MIN_AMPERE and wbI < 2 then
             dz.log("Auto vraagt nog geen stroom → wachten op handshake")
@@ -367,7 +458,7 @@ return {
         end
 
         --------------------------------------------------------------------
-        -- 11. Cap
+        -- 12. Cap
         --------------------------------------------------------------------
         if sessionMaxA ~= nil and maxAllowedA > sessionMaxA then
             maxAllowedA = sessionMaxA
@@ -376,7 +467,7 @@ return {
         dz.data.maxAllowedA = maxAllowedA
 
         --------------------------------------------------------------------
-        -- 12. Dimmer-aansturing
+        -- 13. Dimmer-aansturing
         --------------------------------------------------------------------
         modeLB = ((selector.level or 0) == 0) and 'DYNAMIC' or 'PRESET'
 
@@ -385,7 +476,7 @@ return {
         end
 
         --------------------------------------------------------------------
-        -- 13. Interval-regeling (opbouw / afbouw)
+        -- 14. Interval-regeling (opbouw / afbouw)
         --------------------------------------------------------------------
         local last = dz.data.lastRun or 0
         if now - last >= LOOP_INTERVAL then
@@ -397,7 +488,7 @@ return {
                 if wbI >= newA - 2 and wbI <= newA + 2 then
 
                     if maxNet < HYST_LOW then
-                        if maxNet < 20 then
+                        if maxNet < FastIncreaseThreshold then
                             newA = newA + CurrentFastIncreasing
                         else
                             newA = newA + CurrentIncreasing
@@ -420,7 +511,7 @@ return {
         end
 
         --------------------------------------------------------------------
-        -- 14. END-logging
+        -- 15. END-logging
         --------------------------------------------------------------------
         dz.log(string.format(
             "END | WB=%.2fA | Net=%.2fA | maxAllowedA=%.2fA | Mode=%s | Pause=%s | FuseProtection=%s | sessionPresetLevel=%s | sessionPresetAmp=%s",
