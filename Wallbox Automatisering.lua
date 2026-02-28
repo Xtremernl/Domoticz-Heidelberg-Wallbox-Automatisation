@@ -1,6 +1,6 @@
 ----------------------------------------------------------------------------------------
 --  Date: 23-02-2026
---  Wallbox Automatisering v0.3.18
+--  Wallbox Automatisering v0.3.19
 --  Engineer    : XtremerNL
 --
 --  Notificaties:
@@ -32,7 +32,7 @@
 ----------------------------------------------------------------------------------------
 
 local Script_Name    = 'Wallbox Automatisering'
-local Script_Version = '0.3.18'
+local Script_Version = '0.3.19'
 
 -- IDX mapping (koppeling naar Domoticz devices)
 local IDX_TARIEF                = 366   -- Tariefschakeling (peak/dal) voor tarief-blokkering
@@ -208,6 +208,7 @@ return {
             dz.data.hardOverloadActive    = false
             dz.data.hardOverloadNotified  = false
             dz.data.hardRecoveredNotified = false
+			dz.data.netCommFaultActive    = false
 
             dz.data.sessionActive        = false
             dz.data.sessionMaxA          = nil
@@ -232,7 +233,6 @@ return {
 			local ageL2 = dz.devices(IDX_NET_I_L2).lastUpdate.secondsAgo
 			local ageL3 = dz.devices(IDX_NET_I_L3).lastUpdate.secondsAgo
 
-
 			-- Als één van de drie ouder is dan NETCOMM_TIMEOUT → FAILSAFE
 			local commFault =
 				(ageL1 > NETCOMM_TIMEOUT) or
@@ -241,13 +241,15 @@ return {
 
 			if commFault then
 
-				-- Meld ALTIJD wanneer de netmeting verlopen is
-				dz.notify("Wallbox",
-					"Netmeting verlopen — laden tijdelijk gepauzeerd voor veiligheid.",
-					dz.PRIORITY_HIGH)
+				-- Meld ALLEEN wanneer de fout net is begonnen
+				if not dz.data.netCommFaultActive then
+					dz.notify("Wallbox",
+						"Netmeting verlopen — laden tijdelijk gepauzeerd voor veiligheid.",
+						dz.PRIORITY_HIGH)
+				end
 
 				-- Activeer failsafe-status
-				dz.data.netCommFaultActive    = true
+				dz.data.netCommFaultActive = true
 
 				-- Pauzeer laden
 				dz.data.pauseBySystem        = true
@@ -259,14 +261,13 @@ return {
 				selector.setLevel(0)
 				pause.switchOn()
 
-				-- In failsafe blijven, niets anders doen
 				return
 			end
 
 			-- Herstel: alle drie de fases zijn weer vers (< NETCOMM_TIMEOUT)
 			if dz.data.netCommFaultActive then
 
-				-- Meld ALTIJD wanneer de netmeting hersteld is
+				-- Meld ALLEEN wanneer de fout net is hersteld
 				dz.notify("Wallbox",
 					"Netmeting hersteld — laden hervat op veilige stroom.",
 					dz.PRIORITY_NORMAL)
