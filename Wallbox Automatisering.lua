@@ -1,6 +1,6 @@
 ----------------------------------------------------------------------------------------
 --  Date: 23-02-2026
---  Wallbox Automatisering v0.3.17
+--  Wallbox Automatisering v0.3.18
 --  Engineer    : XtremerNL
 --
 --  Notificaties:
@@ -32,7 +32,7 @@
 ----------------------------------------------------------------------------------------
 
 local Script_Name    = 'Wallbox Automatisering'
-local Script_Version = '0.3.17'
+local Script_Version = '0.3.18'
 
 -- IDX mapping (koppeling naar Domoticz devices)
 local IDX_TARIEF                = 366   -- Tariefschakeling (peak/dal) voor tarief-blokkering
@@ -228,13 +228,10 @@ return {
 		if lader.state == 'On' then
 
 			-- Leeftijd van alle drie de fases bepalen
-			local lastL1 = dz.devices(IDX_NET_I_L1).lastUpdate.raw
-			local lastL2 = dz.devices(IDX_NET_I_L2).lastUpdate.raw
-			local lastL3 = dz.devices(IDX_NET_I_L3).lastUpdate.raw
+			local ageL1 = dz.devices(IDX_NET_I_L1).lastUpdate.secondsAgo
+			local ageL2 = dz.devices(IDX_NET_I_L2).lastUpdate.secondsAgo
+			local ageL3 = dz.devices(IDX_NET_I_L3).lastUpdate.secondsAgo
 
-			local ageL1 = now - lastL1
-			local ageL2 = now - lastL2
-			local ageL3 = now - lastL3
 
 			-- Als één van de drie ouder is dan NETCOMM_TIMEOUT → FAILSAFE
 			local commFault =
@@ -524,4 +521,3 @@ return {
 
     end
 }
-
