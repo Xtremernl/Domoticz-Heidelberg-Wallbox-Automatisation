@@ -7,7 +7,9 @@ Het combineert real‑time netstroommeting, dynamische laadstroomregeling, tarie
 Het script is ontworpen voor Domoticz en werkt met elke wallbox die via een dimmer‑device (laadstroom) en een selector (preset/dynamic) kan worden aangestuurd.
 
 ✨ Belangrijkste functies
+
 💡 Tarief‑blokkering (peak/off‑peak control)
+
 Het script kan laden automatisch blokkeren op basis van het actuele energietarief.
 
 Laden toegestaan tijdens daluren
@@ -21,6 +23,7 @@ Pauze wordt automatisch gezet en weer opgeheven
 Ideaal voor dynamische energiecontracten of vaste piek/dal‑tarieven.
 
 🔌 Dynamische loadbalancing (DYNAMIC‑mode)
+
 Het script regelt automatisch de laadstroom op basis van de actuele netbelasting.
 
 Snelle opbouw bij lage netbelasting
@@ -32,6 +35,7 @@ Automatische afbouw bij dreigende overbelasting
 Handshake‑detectie wanneer de auto nog geen stroom vraagt
 
 ⚡ Soft overload (25–30A)
+
 Bij lichte overstroom:
 
 Geen pauze
@@ -45,6 +49,7 @@ Direct overschakelen naar DYNAMIC
 “Kleine overbelasting gedetecteerd — laadstroom wordt bijgeregeld.”
 
 🔥 Hard overload (≥30A)
+
 Bij zware overstroom:
 
 Laden wordt gepauzeerd
@@ -60,6 +65,7 @@ FuseProtection actief
 “Grove overbelasting — laden tijdelijk gepauzeerd voor veiligheid.”
 
 🔄 Hard overload herstel
+
 Wanneer de netbelasting weer veilig is:
 
 Pauze wordt automatisch opgeheven
@@ -71,6 +77,7 @@ Laadstroom start veilig op 6A
 “Grove overbelasting hersteld — laadstroom wordt bijgeregeld.”
 
 🧠 Sessie‑intelligentie
+
 Preset wordt opgeslagen bij sessiestart
 
 Preset wordt hersteld bij sessie‑einde (indien fuseProtection actief was)
@@ -80,6 +87,7 @@ Notificatie‑latches worden automatisch gereset
 Start in DYNAMIC → altijd veilig terug naar 6A
 
 📊 Logging
+
 Het script logt:
 
 Overload‑detectie
@@ -95,6 +103,7 @@ Handshake‑status
 Eindsamenvatting per cyclus
 
 🛡 Veiligheid boven alles
+
 Het script is ontworpen met industriële principes:
 
 Hysteresis
@@ -110,6 +119,7 @@ Geen notificatie‑spam
 Geen onnodige pauzes
 
 🔋 Thuisbatterij‑integratie (optioneel)
+
 Vanaf versie v0.3.19 ondersteunt het script optionele integratie met een thuisaccu.
 Doel: voorkomen dat een thuisbatterij ontlaadt om de EV te voeden tijdens het laden.
 
@@ -135,6 +145,7 @@ Deze functie is volledig optioneel:
 als IDX 610 niet bestaat, wordt de functie automatisch genegeerd.
 
 📦 Voor wie is dit script bedoeld?
+
 Domoticz‑gebruikers met een EV‑lader
 
 Installaties met beperkte hoofdzekeringen
