@@ -1,4 +1,4 @@
-📘 # Wallbox Automatisering (Domoticz DZvents)
+📘 #Wallbox Automatisering (Domoticz DZvents)
 Slimme EV‑loadbalancing met tarief‑blokkering, soft/hard overload‑beveiliging, automatische pauze‑herstel en optionele thuisbatterij‑integratie.
 
 Dit DZvents‑script regelt het laadvermogen van een elektrische auto op een manier die vergelijkbaar is met professionele industriële loadcontrollers.
